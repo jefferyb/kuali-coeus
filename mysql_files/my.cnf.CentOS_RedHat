@@ -1,0 +1,24 @@
+[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+user=mysql
+# Disabling symbolic-links is recommended to prevent assorted security risks
+symbolic-links=0
+lower_case_table_names = 1
+open_files_limit = 20000
+max_allowed_packet = 1M
+transaction-isolation = READ-COMMITTED
+max_connections = 1000
+max_allowed_packet = 32M
+innodb_locks_unsafe_for_binlog = 1
+default-storage-engine = InnoDB
+innodb = ON
+net_buffer_length = 32768
+query_cache_limit = 1572864
+bind-address = 127.0.0.1
+interactive_timeout = 40000
+wait_timeout = 40000
+
+[mysqld_safe]
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid

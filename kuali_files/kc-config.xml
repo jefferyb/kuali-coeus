@@ -1,0 +1,13 @@
+<config>
+	<param name="application.http.scheme">http</param>
+	<param name="application.host">127.0.0.1</param>
+	<param name="http.port">8080</param>
+	<param name="app.context.name">${app.code}-${environment}</param>
+
+
+	<!-- KC Client DB -->
+	<param name="datasource.url">jdbc:mysql://localhost:3306/kuali</param>
+	<param name="datasource.username">username</param>
+	<param name="datasource.password">password</param>
+	<param name="datasource.ojb.platform">MySQL</param>
+</config>

@@ -1,0 +1,1382 @@
+#!/bin/bash
+
+#DEFINE
+KC_PROJECT_VERSION="1504.3"
+
+if [ -f "/etc/redhat-release" ]; then
+	LINUX_DISTRIBUTION=$(grep -Eo "(Red Hat|CentOS)" /etc/redhat-release)
+fi
+if [ -f /etc/debian_version ]; then
+	LINUX_DISTRIBUTATION=$(grep -Eo "(Debian|Ubuntu)" /etc/issue)
+fi
+DISTRIBUTATION_VERSION=$(cat /etc/*release | grep VERSION_ID | cut -c 13)
+CURRENT_WORKING_DIR=`pwd`
+
+### GET THE SYSTEM'S IP ADDRESS
+IP_ADDRESS=`ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/'`
+
+# TOMCAT RELATED
+TOMCAT_LINK="http://apache.mirrors.lucidnetworks.net/tomcat/tomcat-8/v8.0.21/bin/apache-tomcat-8.0.21.tar.gz"
+TOMCAT_FILE="apache-tomcat-8.0.21.tar.gz"
+TOMCAT_LOCATION="/opt/apache-tomcat/tomcat8"
+
+# MySQL Connector Java
+MYSQL_CONNECTOR_LINK="http://mirror.cogentco.com/pub/mysql/Connector-J/mysql-connector-java-5.1.34.zip"
+MYSQL_CONNECTOR_ZIP_FILE="mysql-connector-java-5.1.34.zip"
+MYSQL_CONNECTOR_FILE="mysql-connector-java-5.1.34/mysql-connector-java-5.1.34-bin.jar"
+
+# Kuali Release File
+KC_RELEASE_LINK="http://downloads.kc.kuali.org/6.0/kc-release-6_0.zip"
+KC_RELEASE_FILE="kc-release-6_0.zip"
+KC_SOURCE_LOCATION="/opt/kuali/source/6.0"
+KC_CONFIG_XML_LOC="/opt/kuali/main/dev"
+
+# CLEAN-UP
+CLEANUP_LOCATIONS="/opt/apache-tomcat /opt/kuali ${CURRENT_WORKING_DIR}/LOGS"
+
+# Tomcat - Spring Instrumentation
+# or download it from http://mvnrepository.com/artifact/org.springframework/spring-instrument
+SPRING_INSTRUMENTATION_LINK="http://central.maven.org/maven2/org/springframework/spring-instrument/3.2.12.RELEASE/spring-instrument-3.2.12.RELEASE.jar"
+SPRING_INSTRUMENTATION_NAME="spring-instrument-3.2.12.RELEASE.jar"
+### SPRING_INSTRUMENTATION=~/.m2/repository/org/springframework/spring-instrument/*.RELEASE/spring-instrument*.RELEASE.jar
+
+# Database Settings
+MYSQL_USERNAME="root"
+MYSQL_PASSWORD="Chang3m3t0an0th3r"
+
+KC_DB_USERNAME="username"
+KC_DB_PASSWORD="password"
+KC_DB_NAME="kuali"
+
+KC_DB_ORACLE_USERNAME="system"
+KC_DB_ORACLE_PASSWORD="oracle"
+KC_DB_ORACLE_NAME="(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=XE)))"
+
+MYSQL_SQL_FILES_FOLDER="${CURRENT_WORKING_DIR}/kuali_files/sql/mysql"
+ORACLE_SQL_FILES_FOLDER="${CURRENT_WORKING_DIR}/kuali_files/sql/oracle"
+
+# Oracle Settings
+ORACLE_FILES_FOLDER="${CURRENT_WORKING_DIR}/oracle_files"
+# ORACLE_TNS_FILE_NAME="tnsnames.ora"
+ORACLE_DRIVER_NAME="ojdbc6.jar"
+
+# FUNCTIONS
+function compile_kuali_for_mysql {
+	# Kuali Project
+	mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+	KC_PROJECT_FOLDER="${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc"
+	KC_PROJECT_LINK="https://github.com/kuali/kc"
+
+	# CLONE KUALI COEUS
+	if [ -d ${KC_PROJECT_FOLDER} ]; then
+		echo 
+	else
+		echo
+		echo
+		echo "Cloning the Kuali Coeus Project"
+		echo "-------------------------------"
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_PROJECT_LINK}
+	fi
+
+	# Kuali Rice Project
+	KC_RICE_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc-rice"
+	KC_RICE_PROJECT_LINK="https://github.com/kuali/kc-rice"
+	KC_RICE_PROJECT_VER=$(egrep "<rice.version>" ${KC_PROJECT_FOLDER}/pom.xml | awk '{print $1}' | cut -d'>' -f2 | cut -d'<' -f1)
+
+	# Kuali Coeus Api Project
+	KC_API_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc-api"
+	KC_API_PROJECT_LINK="https://github.com/kuali/kc-api"
+	KC_API_PROJECT_VER=$(egrep "<coeus-api-all.version>" ${KC_PROJECT_FOLDER}/pom.xml | awk '{print $1}' | cut -d'>' -f2 | cut -d'<' -f1)
+
+	# Kuali Coeus S2sGen
+	KC_S2SGEN_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc-s2sgen"
+	KC_S2SGEN_PROJECT_LINK="https://github.com/kuali/kc-s2sgen"
+	KC_S2SGEN_PROJECT_VER=$(egrep "<coeus-s2sgen.version>" ${KC_PROJECT_FOLDER}/pom.xml | awk '{print $1}' | cut -d'>' -f2 | cut -d'<' -f1)
+
+	# CLONE KUALI COEUS
+	if [ -d ${KC_PROJECT_FOLDER} ]; then
+		echo 
+	else
+		mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_PROJECT_LINK}
+	fi
+
+	cd ..
+
+	# BUILD KUALI RICE
+	if [ -d ${KC_RICE_PROJECT_FORLDER} ]; then
+		cd ${KC_RICE_PROJECT_FORLDER}
+		git checkout tags/rice-${KC_RICE_PROJECT_VER}
+		mvn -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	else
+		mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_RICE_PROJECT_LINK}
+		cd ${KC_RICE_PROJECT_FORLDER}
+		git checkout tags/rice-${KC_RICE_PROJECT_VER}
+		mvn -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	fi
+
+	cd ..
+
+	# BUILD KUALI COEUS API
+	if [ -d ${KC_API_PROJECT_FORLDER} ]; then
+		cd ${KC_API_PROJECT_FORLDER}
+		git checkout tags/coeus-api-${KC_API_PROJECT_VER}
+		mvn -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	else
+		mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_API_PROJECT_LINK}
+		cd ${KC_API_PROJECT_FORLDER}
+		git checkout tags/coeus-api-${KC_API_PROJECT_VER}
+		mvn -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	fi
+
+	cd ..
+
+	# BUILD KUALI COEUS S2SGEN
+	if [ -d ${KC_S2SGEN_PROJECT_FORLDER} ]; then
+		cd ${KC_S2SGEN_PROJECT_FORLDER}
+		git checkout tags/coeus-s2sgen-${KC_S2SGEN_PROJECT_VER}
+		mvn -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	else
+		mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_S2SGEN_PROJECT_LINK}
+		cd ${KC_S2SGEN_PROJECT_FORLDER}
+		git checkout tags/coeus-s2sgen-${KC_S2SGEN_PROJECT_VER}
+		sed -i -e "s/6.0.0.2/${KC_API_PROJECT_VER}/g" pom.xml
+		mvn -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	fi
+
+	cd ..
+
+	# BUILD KUALI COEUS
+	cd ${KC_PROJECT_FOLDER}
+	mvn -DskipTests clean install -Dgrm.off=true
+	# mvn clean install
+
+	# Create a copy of the war file and the XML file to ingest
+	echo
+	echo "Copying a copy of the war file to the ${CURRENT_WORKING_DIR}/DOWNLOADS folder"
+	mkdir -p ${CURRENT_WORKING_DIR}/DOWNLOADS
+	cp ${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc/coeus-webapp/target/coeus-webapp*.war ${CURRENT_WORKING_DIR}/DOWNLOADS/${KC_PROJECT_WAR_NAME}
+	echo
+	echo "Creating a copy of the XML file to ingest in the ${CURRENT_WORKING_DIR}/kuali_files folder"
+	sleep 3
+	rm -f ${CURRENT_WORKING_DIR}/kuali_files/coeus-db-xml-${KC_PROJECT_VERSION}.zip
+	jar xf ${CURRENT_WORKING_DIR}/kuali_files//GitHub/kc/coeus-db/coeus-db-xml/target/coeus-db-xml*.jar && zip -r ${CURRENT_WORKING_DIR}/kuali_files/coeus-db-xml-${KC_PROJECT_VERSION}.zip org/ && rm -fr META-INF/ org
+}
+
+function compile_kuali_for_oracle {
+	if [ -f ${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} ]; then
+		echo " Good. Found your Oracle driver, ${ORACLE_DRIVER_NAME} in ${ORACLE_FILES_FOLDER}"
+	else
+		echo
+		echo "I can't find your Oracle driver, ${ORACLE_DRIVER_NAME}, in ${ORACLE_FILES_FOLDER}"
+		echo
+		echo "Either copy your Oracle driver, ${ORACLE_DRIVER_NAME}, in ${ORACLE_FILES_FOLDER}"
+		echo "or set 'ORACLE_DRIVER_NAME' in this script. "
+		echo
+		exit
+	fi
+
+	# Kuali Project
+	mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+	KC_PROJECT_FOLDER="${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc"
+	KC_PROJECT_LINK="https://github.com/kuali/kc"
+
+	# CLONE KUALI COEUS
+	if [ -d ${KC_PROJECT_FOLDER} ]; then
+		echo 
+	else
+		echo
+		echo
+		echo "Cloning the Kuali Coeus Project"
+		echo "-------------------------------"
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_PROJECT_LINK}
+	fi
+
+	# Kuali Rice Project
+	KC_RICE_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc-rice"
+	KC_RICE_PROJECT_LINK="https://github.com/kuali/kc-rice"
+	KC_RICE_PROJECT_VER=$(egrep "<rice.version>" ${KC_PROJECT_FOLDER}/pom.xml | awk '{print $1}' | cut -d'>' -f2 | cut -d'<' -f1)
+
+	# Kuali Coeus Api Project
+	KC_API_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc-api"
+	KC_API_PROJECT_LINK="https://github.com/kuali/kc-api"
+	KC_API_PROJECT_VER=$(egrep "<coeus-api-all.version>" ${KC_PROJECT_FOLDER}/pom.xml | awk '{print $1}' | cut -d'>' -f2 | cut -d'<' -f1)
+
+	# Kuali Coeus S2sGen
+	KC_S2SGEN_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc-s2sgen"
+	KC_S2SGEN_PROJECT_LINK="https://github.com/kuali/kc-s2sgen"
+	KC_S2SGEN_PROJECT_VER=$(egrep "<coeus-s2sgen.version>" ${KC_PROJECT_FOLDER}/pom.xml | awk '{print $1}' | cut -d'>' -f2 | cut -d'<' -f1)
+
+	# CLONE KUALI COEUS
+	if [ -d ${KC_PROJECT_FOLDER} ]; then
+		echo "${KC_PROJECT_FOLDER} exist"
+	else
+		mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_PROJECT_LINK}
+	fi
+
+	cd ..
+
+	# BUILD KUALI RICE
+	if [ -d ${KC_RICE_PROJECT_FORLDER} ]; then
+		cd ${KC_RICE_PROJECT_FORLDER}
+		git checkout tags/rice-${KC_RICE_PROJECT_VER}
+
+		mvn install:install-file -Dfile=${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=10.2.0.3.0 -Dpackaging=jar
+		mvn -P oracle -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	else
+		mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_RICE_PROJECT_LINK}
+		cd ${KC_RICE_PROJECT_FORLDER}
+		git checkout tags/rice-${KC_RICE_PROJECT_VER}
+
+		mvn install:install-file -Dfile=${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=10.2.0.3.0 -Dpackaging=jar
+		mvn -P oracle -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	fi
+
+	cd ..
+
+	# BUILD KUALI COEUS API
+	if [ -d ${KC_API_PROJECT_FORLDER} ]; then
+		cd ${KC_API_PROJECT_FORLDER}
+		git checkout tags/coeus-api-${KC_API_PROJECT_VER}
+
+		mvn install:install-file -Dfile=${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=10.2.0.3.0 -Dpackaging=jar
+		mvn -P oracle -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	else
+		mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_API_PROJECT_LINK}
+		cd ${KC_API_PROJECT_FORLDER}
+		git checkout tags/coeus-api-${KC_API_PROJECT_VER}
+
+		mvn install:install-file -Dfile=${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=10.2.0.3.0 -Dpackaging=jar
+		mvn -P oracle -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	fi
+
+	cd ..
+
+	# BUILD KUALI COEUS S2SGEN
+	if [ -d ${KC_S2SGEN_PROJECT_FORLDER} ]; then
+		cd ${KC_S2SGEN_PROJECT_FORLDER}
+		git checkout tags/coeus-s2sgen-${KC_S2SGEN_PROJECT_VER}
+
+		mvn install:install-file -Dfile=${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=10.2.0.3.0 -Dpackaging=jar
+		mvn -P oracle -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	else
+		mkdir -p ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		cd ${CURRENT_WORKING_DIR}/kuali_files/GitHub
+		git clone ${KC_S2SGEN_PROJECT_LINK}
+		cd ${KC_S2SGEN_PROJECT_FORLDER}
+		git checkout tags/coeus-s2sgen-${KC_S2SGEN_PROJECT_VER}
+		sed -i -e "s/6.0.0.2/${KC_API_PROJECT_VER}/g" pom.xml
+
+		mvn install:install-file -Dfile=${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=10.2.0.3.0 -Dpackaging=jar
+		mvn -P oracle -DskipTests clean install -Dgrm.off=true
+		# mvn clean install
+	fi
+
+	cd ..
+
+	# BUILD KUALI COEUS
+	cd ${KC_PROJECT_FOLDER}
+	mvn install:install-file -Dfile=${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=10.2.0.3.0 -Dpackaging=jar
+	mvn -P oracle -DskipTests clean install -Dgrm.off=true
+	# mvn clean install
+
+	# Create a copy of the war file and the XML file to ingest
+	echo
+	echo "Copying a copy of the war file to the ${CURRENT_WORKING_DIR}/DOWNLOADS folder"
+	mkdir -p ${CURRENT_WORKING_DIR}/DOWNLOADS
+	cp ${CURRENT_WORKING_DIR}/kuali_files/GitHub/kc/coeus-webapp/target/coeus-webapp*.war ${CURRENT_WORKING_DIR}/DOWNLOADS/${KC_PROJECT_WAR_NAME}
+	echo
+	echo "Creating a copy of the XML file to ingest in the ${CURRENT_WORKING_DIR}/kuali_files folder"
+	sleep 3
+	rm -f ${CURRENT_WORKING_DIR}/kuali_files/coeus-db-xml-${KC_PROJECT_VERSION}.zip
+	jar xf ${CURRENT_WORKING_DIR}/kuali_files//GitHub/kc/coeus-db/coeus-db-xml/target/coeus-db-xml*.jar && zip -r ${CURRENT_WORKING_DIR}/kuali_files/coeus-db-xml-${KC_PROJECT_VERSION}.zip org/ && rm -fr META-INF/ org
+}
+
+function install_build_packages {
+	# Debian/Ubuntu Packages
+	if [ -f /etc/debian_version ]; then
+		if ! dpkg -l | grep -qw maven; then
+			# Install Java and Maven on a Debian System
+			apt-get update
+			apt-get install -y openjdk-7-jdk maven git
+		fi
+	fi
+
+	# RedHat/Centos Packages
+	if [ -f "/etc/redhat-release" ]; then
+		# Install Java and Maven on Centos
+		# if [ "$LINUX_DISTRIBUTION" = "CentOS" ]; then
+		if ! rpm -qa | grep -qw apache-maven; then
+			if [ ! -f /etc/yum.repos.d/epel-apache-maven.repo ]; then
+				sudo wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
+			fi
+				# sudo yum install -y java-1.7.0-openjdk.x86_64 java-1.7.0-openjdk-devel.x86_64 apache-maven
+				sudo yum install -y java-1.7.0-openjdk-devel.x86_64 apache-maven git
+			fi
+		# fi
+
+		# # Install Java and Maven on RedHat
+		# if [ "$LINUX_DISTRIBUTION" = "Red Hat" ]; then
+		# 	if ! rpm -qa | grep -qw maven30; then
+		# 		sudo yum install -y java-1.7.0-openjdk.x86_64 java-1.7.0-openjdk-devel.x86_64 maven30
+		# 	fi
+		# fi
+	fi
+}
+
+function install_packages {
+	if [ -f /etc/debian_version ]; then
+		apt-get update
+		apt-get install -y wget zip unzip openjdk-7-jdk git tar
+	elif [ -f /etc/redhat-release ]; then
+		yum install -y wget zip unzip java-1.7.0-openjdk git tar
+	fi
+}
+
+function clean_up_system {
+	### DOING SOME CLEAN-UP
+	rm -fr ${CLEANUP_LOCATIONS}
+	#	mysqladmin -u ${KC_DB_USERNAME} -p${KC_DB_PASSWORD} drop --force ${KC_DB_NAME}
+}
+
+function stop_firewall {
+	if [ -f /etc/redhat-release ]; then
+		yum install -y net-tools
+		if [[ $DISTRIBUTATION_VERSION == 7 ]]; then
+			systemctl stop firewalld
+		else
+			service iptables stop
+		fi
+	fi
+}
+
+function install_mysql {
+	clear
+
+	echo "**********************************************************************"
+	echo "*"
+	echo "*	Making sure MySQL is installed "
+	echo "*"
+	echo "**********************************************************************" 
+	echo
+	echo
+
+	if [ -f /etc/debian_version ]; then
+		dpkg -l | grep -i mysql-server | head -1 | if [[ "$(cut -d ' ' -f 1)" != "ii" ]]; then
+		echo
+		echo "It looks like MySQL is not installed on your $LINUX_DISTRIBUTATION"
+		echo "Make sure that MySQL is installed & configured and have the root password"
+		echo
+		apt-get update
+		debconf-set-selections <<< "mysql-server mysql-server/root_password password ${MYSQL_PASSWORD}"
+		debconf-set-selections <<< "mysql-server mysql-server/root_password_again password ${MYSQL_PASSWORD}"
+		apt-get install -y mysql-server
+	fi
+
+	echo
+	echo "Ok, it looks like MySQL Server (mysql-server) is installed on your $LINUX_DISTRIBUTATION..."
+	echo
+
+	elif [ -f /etc/redhat-release ]; then
+		if [[ $DISTRIBUTATION_VERSION == 7 ]]; then
+			if [[ "$(rpm -q mariadb-server)" == "package mariadb-server is not installed" ]]; then
+				echo
+				echo "It looks like MySQL Server (mariadb-server) is not installed on your $LINUX_DISTRIBUTATION"
+				echo "Installing/setting up MySQL Server (mariadb-server) "
+				echo "===================================================="
+				yum install -y mariadb-server mariadb
+				systemctl start mariadb
+				systemctl enable mariadb
+				/usr/bin/mysqladmin -u ${MYSQL_USERNAME} password ${MYSQL_PASSWORD}
+				/usr/bin/mysqladmin -u ${MYSQL_USERNAME} -h `hostname` password ${MYSQL_PASSWORD}
+			fi
+		else
+			if [[ "$(rpm -q mysql-server)" == "package mysql-server is not installed" ]]; then
+				echo "It looks like MySQL Server (mysql-server) is not installed on your $LINUX_DISTRIBUTATION"
+				echo "Installing/setting up MySQL Server (mysql-server) "
+				echo "=================================================="
+				yum install -y mysql-server mysql
+				chkconfig --levels 235 mysqld on
+				service mysqld start
+				/usr/bin/mysqladmin -u ${MYSQL_USERNAME} password ${MYSQL_PASSWORD}
+				/usr/bin/mysqladmin -u ${MYSQL_USERNAME} -h `hostname` password ${MYSQL_PASSWORD}
+			fi
+		fi
+
+		echo
+		echo "Ok, it looks like MySQL Server is installed on your $LINUX_DISTRIBUTATION..."
+		echo
+	fi
+}
+
+function setup_kc60 {
+	### DOWNLOAD KUALI COEUS 6.0
+	mkdir -p ${CURRENT_WORKING_DIR}/DOWNLOADS
+	cd ${CURRENT_WORKING_DIR}/DOWNLOADS
+	if [ -f ${KC_RELEASE_FILE} ]; then
+		echo "${KC_RELEASE_FILE} exist"
+	else
+		wget ${KC_RELEASE_LINK}
+	fi
+
+	if [ -f ${KC_SOURCE_LOCATION}/binary/kc-ptd.war ]; then
+		echo "Looks like you already have ${KC_RELEASE_FILE} unpacked"
+	else
+		mkdir -p ${KC_SOURCE_LOCATION}
+		unzip ${KC_RELEASE_FILE} -d ${KC_SOURCE_LOCATION}
+	fi
+}
+
+function setup_mysql {
+	### SETUP MySQL
+	if [ -f /etc/debian_version ]; then
+		cp ${CURRENT_WORKING_DIR}/mysql_files/my.cnf.Ubuntu /etc/mysql/my.cnf
+		service mysql restart
+	elif [[ $DISTRIBUTATION_VERSION == 7 ]]; then
+		cp ${CURRENT_WORKING_DIR}/mysql_files/my.cnf.CentOS_7_RedHat /etc/my.cnf
+		systemctl restart mariadb
+	elif [ -f /etc/redhat-release ]; then
+		cp ${CURRENT_WORKING_DIR}/mysql_files/my.cnf.CentOS_RedHat /etc/my.cnf
+		service mysqld restart
+	fi
+
+	cd ${CURRENT_WORKING_DIR}
+	mysqladmin -u ${KC_DB_USERNAME} -p${KC_DB_PASSWORD} drop --force ${KC_DB_NAME}
+	clear
+	echo
+	echo
+	echo "This may take a few minutes... Running the Kuali Coeus Database Scripts"
+	mysql -u ${MYSQL_USERNAME} -p${MYSQL_PASSWORD} < mysql_files/configure_mysql.sql
+	rm -fr ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS
+	cp kuali_files/J_KC_Install* ${KC_SOURCE_LOCATION}/db_scripts/main/
+
+	cd ${KC_SOURCE_LOCATION}/db_scripts/main/
+	chmod +x *.sh
+	./J_KC_Install.sh
+	cp ${CURRENT_WORKING_DIR}/mysql_files/get_mysql_errors ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/
+	cd ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS
+	./get_mysql_errors
+
+	grep ERROR ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/UPGRADE_ERRORS*
+	if [ $? -eq 0 ]; then
+		echo
+		echo " Errors above were FOUND!!!"
+		sleep 5
+	else
+		echo
+		echo " NO Errors were Found"
+		sleep 5
+	fi
+}
+
+function setup_oracle_db {
+	### SETUP Oracle
+# 	if [ -f /etc/debian_version ]; then
+# 		cp ${CURRENT_WORKING_DIR}/mysql_files/my.cnf.Ubuntu /etc/mysql/my.cnf
+# 		service mysql restart
+# 	elif [[ $DISTRIBUTATION_VERSION == 7 ]]; then
+# 		cp ${CURRENT_WORKING_DIR}/mysql_files/my.cnf.CentOS_7_RedHat /etc/my.cnf
+# 		systemctl restart mariadb
+# 	elif [ -f /etc/redhat-release ]; then
+# 		cp ${CURRENT_WORKING_DIR}/mysql_files/my.cnf.CentOS_RedHat /etc/my.cnf
+# 		service mysqld restart
+# 	fi
+
+	cd ${CURRENT_WORKING_DIR}
+	clear
+	echo
+	echo
+	echo "This may take a few minutes... Running the Kuali Coeus Database Scripts"
+	rm -fr ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS
+	cp kuali_files/J_KC_Install* ${KC_SOURCE_LOCATION}/db_scripts/main/
+
+	cd ${KC_SOURCE_LOCATION}/db_scripts/main/
+	chmod +x *.sh
+	./J_KC_Install_Oracle.sh
+	cp ${CURRENT_WORKING_DIR}/oracle_files/get_oracle_errors ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/
+	cd ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS
+	./get_oracle_errors
+
+	grep ORA- ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/UPGRADE_ERRORS*
+	if [ $? -eq 0 ]; then
+		echo
+		echo " Errors above were FOUND!!!"
+		sleep 5
+	else
+		echo
+		echo " NO Errors were Found"
+		sleep 5
+	fi
+}
+
+function setup_tomcat {
+	### SETTING UP TOMCAT
+	mkdir -p ${CURRENT_WORKING_DIR}/DOWNLOADS
+	cd ${CURRENT_WORKING_DIR}/DOWNLOADS
+	if [ -f ${TOMCAT_FILE} ]; then
+		echo "Found ${TOMCAT_FILE}"
+	else
+		wget ${TOMCAT_LINK}
+	fi
+
+	mkdir -p ${TOMCAT_LOCATION}
+	tar --strip-components=1 -zxvf ${TOMCAT_FILE} -C ${TOMCAT_LOCATION}
+
+	if [ "$mysql_or_oracle" -eq "1" ]; then
+		if [ -f ${MYSQL_CONNECTOR_ZIP_FILE} ]; then
+			echo "Found ${MYSQL_CONNECTOR_ZIP_FILE}"
+		else
+			wget ${MYSQL_CONNECTOR_LINK}
+		fi
+		unzip -j ${MYSQL_CONNECTOR_ZIP_FILE} ${MYSQL_CONNECTOR_FILE} -d ${TOMCAT_LOCATION}/lib
+	elif [ "$mysql_or_oracle" -eq "2" ]; then
+		cp ${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} ${TOMCAT_LOCATION}/lib
+	fi
+
+	cp ${CURRENT_WORKING_DIR}/tomcat_files/setenv.sh ${TOMCAT_LOCATION}/bin
+	cd ${TOMCAT_LOCATION}/lib
+	if [ -f ${SPRING_INSTRUMENTATION_NAME} ]; then
+		echo "Found ${SPRING_INSTRUMENTATION_NAME}"
+	else
+		wget ${SPRING_INSTRUMENTATION_LINK}
+	fi
+	cd ${TOMCAT_LOCATION}/bin
+	chmod +x *.sh
+}
+
+function setup_kc_application {
+	### Kill any current running tomcat before starting a new one...
+	for i in $( ps -ef | grep -v "grep" | grep "tomcat" | awk '{print $2}' ); do
+		kill -9 $i
+	done
+
+	### SETTING UP THE KC APPLICATION
+	mkdir -p ${KC_CONFIG_XML_LOC}
+	if [ "$mysql_or_oracle" -eq "1" ]; then
+		cp ${CURRENT_WORKING_DIR}/kuali_files/kc-config.xml ${KC_CONFIG_XML_LOC}/kc-config.xml
+	elif [ "$mysql_or_oracle" -eq "2" ]; then
+		cp ${CURRENT_WORKING_DIR}/kuali_files/kc-config_oracle.xml ${KC_CONFIG_XML_LOC}/kc-config.xml
+	fi
+	sed -i "s/127.0.0.1/${IP_ADDRESS}/" ${KC_CONFIG_XML_LOC}/kc-config.xml
+
+	### Get the current war file
+	mkdir -p ${CURRENT_WORKING_DIR}/DOWNLOADS
+	cd ${CURRENT_WORKING_DIR}/DOWNLOADS
+	if [ -f ${KC_PROJECT_WAR_NAME} ]; then
+		echo "Found ${KC_PROJECT_WAR_NAME}"
+	else
+		wget ${KC_PROJECT_WAR_LINK} -O kc-dev.war
+	fi
+
+	rm -fr ${TOMCAT_LOCATION}/webapps/kc-*
+	cp -f ${CURRENT_WORKING_DIR}/DOWNLOADS/kc-dev.war ${TOMCAT_LOCATION}/webapps/kc-dev.war
+	cd ${TOMCAT_LOCATION}/bin
+	./startup.sh
+
+	tailf ${TOMCAT_LOCATION}/logs/catalina.out &
+	regex="initialization completed in"
+	tailf ${TOMCAT_LOCATION}/logs/catalina.out | while read line; do
+		if [[ $line =~ $regex ]]; then
+			pkill -9 -P $$ tailf
+		fi
+	done
+
+	echo
+	echo
+	echo
+	echo
+	echo
+	echo
+	echo
+	echo "If there were no errors, you should be able to access Kuali Coeus at: "
+	echo "**********************************************************************"
+	echo "*"
+	echo "*	http://"${IP_ADDRESS}":8080/kc-dev       | Login as 'admin' "
+	echo "*"
+	echo "**********************************************************************" 
+	echo "PS: remember to turn off or configure your firewall on the server... ( Your firewall should be off, but make sure )"
+	echo
+	echo "And you should ingest the coeus-db-xml-${KC_PROJECT_VERSION}.zip ( the XML files ) that you can find at ${CURRENT_WORKING_DIR}/kuali_files/coeus-db-xml-${KC_PROJECT_VERSION}.zip "
+	echo
+	echo
+	echo
+	echo
+}
+
+function mysql_521_600 {
+	mkdir -p ${CURRENT_WORKING_DIR}/LOGS
+	echo
+	echo "Upgrading your MySQL Database from 5.2.1 to 6.0.0"
+	cd ${MYSQL_SQL_FILES_FOLDER}
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 600_mysql_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/600_MYSQL_RICE_SERVER_UPGRADE.log 2>&1
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 600_mysql_rice_client_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/600_MYSQL_RICE_CLIENT_UPGRADE.log 2>&1
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 600_mysql_kc_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/600_MYSQL_KC_RICE_SERVER_UPGRADE.log 2>&1
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 600_mysql_kc_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/600_MYSQL_KC_UPGRADE.log 2>&1
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 600_mysql_kc_demo.sql > ${CURRENT_WORKING_DIR}/LOGS/600_MYSQL_KC_DEMO.log 2>&1
+	sleep 3
+
+	cp ${CURRENT_WORKING_DIR}/mysql_files/get_mysql_errors ${CURRENT_WORKING_DIR}/LOGS
+	cd ${CURRENT_WORKING_DIR}/LOGS
+	./get_mysql_errors
+
+	grep ERROR ${CURRENT_WORKING_DIR}/LOGS/UPGRADE_ERRORS*
+	if [ $? -eq 0 ]; then
+		echo
+		echo "There were some errors during the upgrade. Check ${CURRENT_WORKING_DIR}/LOGS to make sure"
+		sleep 5
+		echo "Your database has NOT been upgraded correctly"
+	else
+		echo
+		echo "There were no errors during the upgrade. Check ${CURRENT_WORKING_DIR}/LOGS to make sure"
+		sleep 5
+		echo "Your database has been upgraded"
+	fi
+	echo
+}
+
+function mysql_600_15043 {
+	mkdir -p ${CURRENT_WORKING_DIR}/LOGS
+	echo
+	echo "Upgrading your MySQL Database from 6.0.0 to 1504.3"
+	cd ${MYSQL_SQL_FILES_FOLDER}
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 601_mysql_kc_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/601_MYSQL_KC_RICE_SERVER_UPGRADE.log 2>&1
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 601_mysql_kc_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/601_MYSQL_KC_UPGRADE.log 2>&1
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 1504_mysql_kc_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/1504_MYSQL_KC_RICE_SERVER_UPGRADE.log 2>&1
+	mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < 1504_mysql_kc_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/1504_MYSQL_KC_UPGRADE.log 2>&1
+	sleep 3
+
+	cp ${CURRENT_WORKING_DIR}/mysql_files/get_mysql_errors ${CURRENT_WORKING_DIR}/LOGS
+	cd ${CURRENT_WORKING_DIR}/LOGS
+	./get_mysql_errors
+
+	grep ERROR ${CURRENT_WORKING_DIR}/LOGS/UPGRADE_ERRORS*
+	if [ $? -eq 0 ]; then
+		echo
+		echo "There were some errors during the upgrade. Check ${CURRENT_WORKING_DIR}/LOGS to make sure"
+		sleep 5
+		echo "Your database has NOT been upgraded correctly"
+	else
+		echo
+		echo "There were no errors during the upgrade. Check ${CURRENT_WORKING_DIR}/LOGS to make sure"
+		sleep 5
+		echo "Your database has been upgraded"
+	fi
+	echo
+}
+
+function run_mysql_upgrade {
+	echo
+	PS3='Please enter your option: '
+	options=("Upgrade from 5.2.1 to 6.0.0" "Upgrade from 6.0.0 to 1504" "Upgrade from 5.2.1 to 1504")
+	select opt in "${options[@]}"
+	do
+		case $opt in
+			"Upgrade from 5.2.1 to 6.0.0")
+				mysql_521_600
+				;;
+
+			"Upgrade from 6.0.0 to 1504")
+				mysql_600_15043
+				;;
+
+			"Upgrade from 5.2.1 to 1504")
+				mysql_521_600
+				mysql_600_15043
+				;;
+
+			*) 
+				echo invalid option
+				;;
+		esac
+	done
+}
+
+# function oracle_tns_info {
+# 	echo "Enter KC Database Hostname"
+# 	echo -n "===> "
+# 	read DB_HOSTNAME
+# 	echo "Enter KC Database TNS Name"
+# 	echo -n "===> "
+# 	read DB_TNSNAME
+# 	KC_DB_ORACLE_NAME="(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${DB_HOSTNAME})(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=${DB_TNSNAME})))"
+# }
+
+function oracle_521_600 {
+	mkdir -p ${CURRENT_WORKING_DIR}/LOGS
+	echo
+	echo "Upgrading your Oracle Database from 5.2.1 to 6.0.0"
+	cd ${ORACLE_SQL_FILES_FOLDER}
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @600_oracle_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/600_ORACLE_RICE_SERVER_UPGRADE.log 2>&1
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @600_oracle_rice_client_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/600_ORACLE_RICE_CLIENT_UPGRADE.log 2>&1
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @600_oracle_kc_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/600_ORACLE_KC_RICE_SERVER_UPGRADE.log 2>&1
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @600_oracle_kc_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/600_ORACLE_KC_UPGRADE.log 2>&1
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @600_oracle_kc_demo.sql > ${CURRENT_WORKING_DIR}/LOGS/600_ORACLE_KC_DEMO.log 2>&1
+	sleep 3
+
+	cp ${CURRENT_WORKING_DIR}/oracle_files/get_oracle_errors ${CURRENT_WORKING_DIR}/LOGS
+	cd ${CURRENT_WORKING_DIR}/LOGS
+	./get_oracle_errors
+
+	grep ORA- ${CURRENT_WORKING_DIR}/LOGS/UPGRADE_ERRORS*
+	if [ $? -eq 0 ]; then
+		echo
+		echo "There were some errors during the upgrade. Check ${CURRENT_WORKING_DIR}/LOGS to make sure"
+		sleep 5
+		echo "Your database has NOT been upgraded correctly"
+	else
+		echo
+		echo "There were no errors during the upgrade. Check ${CURRENT_WORKING_DIR}/LOGS to make sure"
+		sleep 5
+		echo "Your database has been upgraded"
+	fi
+	echo
+}
+
+function oracle_600_15043 {
+	mkdir -p ${CURRENT_WORKING_DIR}/LOGS
+	echo
+	echo "Upgrading your Oracle Database from 6.0.0 to 1504.3"
+	cd ${ORACLE_SQL_FILES_FOLDER}
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @601_oracle_kc_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/601_ORACLE_KC_RICE_SERVER_UPGRADE.log 2>&1
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @601_oracle_kc_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/601_ORACLE_KC_UPGRADE.log 2>&1
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @1504_oracle_kc_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/1504_ORACLE_KC_RICE_SERVER_UPGRADE.log 2>&1
+	sqlplus ${KC_DB_ORACLE_USERNAME}/${KC_DB_ORACLE_PASSWORD}@${KC_DB_ORACLE_NAME} @1504_oracle_kc_upgrade.sql > ${CURRENT_WORKING_DIR}/LOGS/1504_ORACLE_KC_UPGRADE.log 2>&1
+	sleep 3
+
+	rm -f *.log
+	cp ${CURRENT_WORKING_DIR}/oracle_files/get_oracle_errors ${CURRENT_WORKING_DIR}/LOGS
+	cd ${CURRENT_WORKING_DIR}/LOGS
+	./get_oracle_errors
+
+	grep ORA- ${CURRENT_WORKING_DIR}/LOGS/UPGRADE_ERRORS*
+	if [ $? -eq 0 ]; then
+		echo
+		echo "There were some errors during the upgrade. Check ${CURRENT_WORKING_DIR}/LOGS to make sure"
+		sleep 5
+		echo "Your database has NOT been upgraded correctly"
+	else
+		echo
+		echo "There were no errors during the upgrade. Check ${CURRENT_WORKING_DIR}/LOGS to make sure"
+		sleep 5
+		echo "Your database has been upgraded"
+	fi
+	echo
+}
+
+function run_oracle_upgrade {
+	# if [ -f ${ORACLE_FILES_FOLDER}/${ORACLE_TNS_FILE_NAME} ]; then
+	#     echo " Good. Found your ${ORACLE_TNS_FILE_NAME} file in ${ORACLE_FILES_FOLDER}"
+	#     export TNS_ADMIN="${ORACLE_FILES_FOLDER}/${ORACLE_TNS_FILE_NAME}"
+	# else
+	#     echo
+	#     echo "I can't find your ${ORACLE_TNS_FILE_NAME} file in ${ORACLE_FILES_FOLDER}"
+	#     echo
+	#     echo "Either copy your ${ORACLE_TNS_FILE_NAME} file in ${ORACLE_FILES_FOLDER}"
+	#     echo "or set 'ORACLE_TNS_FILE_NAME' in this script. "
+	#     echo
+	#     exit
+	# fi
+
+	# echo "Enter KC Database Hostname"
+	# echo -n "===> "
+	# read DB_HOSTNAME
+	# echo "Enter KC Database TNS Name"
+	# echo -n "===> "
+	# read DB_TNSNAME
+
+	# KC_DB_ORACLE_NAME="(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${DB_HOSTNAME})(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=${DB_TNSNAME})))"
+
+	echo
+	PS3='Please enter your option: '
+	options=("Upgrade from 5.2.1 to 6.0.0" "Upgrade from 6.0.0 to 1504" "Upgrade from 5.2.1 to 1504")
+	select opt in "${options[@]}"
+	do
+		case $opt in
+			"Upgrade from 5.2.1 to 6.0.0")
+				oracle_521_600
+				;;
+
+			"Upgrade from 6.0.0 to 1504")
+				oracle_600_15043
+				;;
+
+			"Upgrade from 5.2.1 to 1504")
+				oracle_521_600
+				oracle_600_15043
+				;;
+
+			*) 
+				echo "invalid option"
+				;;
+		esac
+	done
+}
+
+function run_database_upgrade {
+	echo "What Database are you using?"
+	echo "1) MySQL"
+	echo "2) Oracle"
+	echo
+	echo -n "===> "
+	read db_option
+	case $db_option in
+		[1] | [Mm][Yy][Ss][Qq][Ll] )
+			run_mysql_upgrade
+			exit 1
+			;;
+
+		[2] | [Oo][Rr][Aa][Cc][Ll][Ee] )
+			oracle_tns_info
+			run_oracle_upgrade
+			exit 1
+			;;
+
+		*) 
+			echo "Invalid input"
+			run_database_upgrade
+			;;
+	esac
+}
+
+function main_menu {
+	clear
+	echo
+	echo
+	echo "======= Main Menu ======="
+	echo "========================="
+	echo
+	echo "What would you like to do?"
+	echo "  1) Compile and Install Kuali Coeus ${KC_PROJECT_VERSION}"
+	echo "  2) Compile Kuali Coeus ${KC_PROJECT_VERSION}"
+	echo "  3) Install Kuali Coeus ${KC_PROJECT_VERSION} (Database + Application)"
+	echo "  4) Setup a NEW ${KC_PROJECT_VERSION} Database (NO Application)"
+	echo "  5) Setup a Kuali Coeus ${KC_PROJECT_VERSION} Application (NO Database)"
+	echo "  6) Run the SQL Upgrade Scripts to ${KC_PROJECT_VERSION}"
+	echo "  7) Exit"
+	echo
+	echo -n "===> "
+	read kuali_option
+	case $kuali_option in
+		[1] )
+			echo
+			echo "What Database do you want to setup?"
+			echo "  1) MySQL"
+			echo "  2) Oracle"
+			echo "  3) Go back to Main Menu"
+			echo
+			echo -n "===> "
+			read mysql_or_oracle
+			echo
+			echo "Would you like me to run the J_KC_Install_Demo.sh script?"
+			echo "  1) Yes"
+			echo "  2) No"
+			echo "  3) Go back to Main Menu"
+			echo
+			echo -n "===> "
+			read INSTALL_KC_DEMO
+			if [ "${INSTALL_KC_DEMO}" -eq "1" ]; then
+				echo
+				echo "Cool, I will run the J_KC_Install_Demo.sh script for you"
+				sleep 3
+			elif [ "${INSTALL_KC_DEMO}" -eq "2" ]; then
+				echo
+				echo "Cool, I will SKIP runnning the J_KC_Install_Demo.sh script for you"
+				sleep 3
+			elif [ "${INSTALL_KC_DEMO}" -eq "3" ]; then
+				main_menu
+			else
+				echo "Invalid input"
+				sleep 3
+				main_menu
+			fi
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				mysql_or_oracle_choice="MySQL"
+				KC_PROJECT_WAR_LINK="http://goo.gl/EvGiWY"
+				KC_PROJECT_WAR_NAME="kc-dev.war"
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+ 				mysql_or_oracle_choice="Oracle"
+ 				KC_PROJECT_WAR_LINK="http://goo.gl/eFcQA0"
+ 				KC_PROJECT_WAR_NAME="kc-dev.war"
+				if [ -f ${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} ]; then
+					echo " Good. Found your Oracle driver, ${ORACLE_DRIVER_NAME} in ${ORACLE_FILES_FOLDER}"
+				else
+					echo
+					echo "I can't find your Oracle driver, ${ORACLE_DRIVER_NAME}, in ${ORACLE_FILES_FOLDER}"
+					echo
+					echo "Either copy your Oracle driver, ${ORACLE_DRIVER_NAME}, in ${ORACLE_FILES_FOLDER}"
+					echo "or set 'ORACLE_DRIVER_NAME' in this script. "
+					echo
+					exit
+				fi
+			elif [ "$mysql_or_oracle" -eq "3" ]; then
+				main_menu
+			else
+				echo "Invalid input"
+				sleep 2
+				main_menu
+			fi
+
+			echo
+			echo "Compiling and Installing Kuali Coeus for your ${mysql_or_oracle_choice} Database"
+			echo "============================================================="
+			echo "Installing Packages"
+			sleep 2
+			install_build_packages
+			install_packages
+			echo "Compiling Kuali Coeus"
+			sleep 2
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				compile_kuali_for_mysql
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+				compile_kuali_for_oracle
+			fi
+			echo "Stopping the firewall"
+			sleep 2
+			stop_firewall
+			echo "Doing some clean up"
+			sleep 2
+			clean_up_system
+			echo "Checking/Installing database"
+			sleep 2
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				install_mysql
+			fi
+			echo "Getting KC 6.0"
+			sleep 2
+			setup_kc60
+			echo "Running the SQL Scripts"
+			sleep 2
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				setup_mysql
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+				setup_oracle_db
+			fi
+			if [ "${INSTALL_KC_DEMO}" -eq "1" ]; then
+				cd ${KC_SOURCE_LOCATION}/db_scripts/main/
+				if [ "$mysql_or_oracle" -eq "1" ]; then
+					./J_KC_Install_Demo.sh
+				elif [ "$mysql_or_oracle" -eq "2" ]; then
+					./J_KC_Install_Oracle_Demo.sh
+				fi
+				cd ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS
+				if [ "$mysql_or_oracle" -eq "1" ]; then
+					./get_mysql_errors
+					grep ERROR ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/UPGRADE_ERRORS*
+					if [ $? -eq 0 ]; then
+						echo
+						echo " Errors above were FOUND!!!"
+						sleep 5
+					else
+						echo
+						echo " NO Errors were Found"
+						sleep 5
+					fi
+				elif [ "$mysql_or_oracle" -eq "2" ]; then
+					./get_oracle_errors
+					grep ORA- ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/UPGRADE_ERRORS*
+					if [ $? -eq 0 ]; then
+						echo
+						echo " Errors above were FOUND!!!"
+						sleep 5
+					else
+						echo
+						echo " NO Errors were Found"
+						sleep 5
+					fi
+				fi
+			fi
+			rm -fr ${CURRENT_WORKING_DIR}/LOGS
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				mysql_600_15043
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+ 				oracle_600_15043
+			fi
+			echo "Setting up tomcat"
+			sleep 2
+			setup_tomcat
+			echo "Setting and starting the KC application"
+			sleep 2
+			setup_kc_application
+			;;
+
+		[2] )
+			echo
+			echo "What Database are you using?"
+			echo "  1) MySQL"
+			echo "  2) Oracle"
+			echo "  3) Go back to Main Menu"
+			echo
+			echo -n "===> "
+			read mysql_or_oracle
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				mysql_or_oracle_choice="MySQL"
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+				mysql_or_oracle_choice="Oracle"
+			elif [ "$mysql_or_oracle" -eq "3" ]; then
+				main_menu
+			else
+				echo "Invalid input"
+				sleep 2
+				main_menu
+			fi
+
+			echo
+			echo "Compiling Kuali Coeus for your ${mysql_or_oracle_choice} Database"
+			echo "=============================================="
+			install_build_packages
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				compile_kuali_for_mysql
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+				compile_kuali_for_oracle
+			fi
+			exit 1
+			;;
+
+		[3] )
+			echo
+			echo "What Database do you want to setup?"
+			echo "  1) MySQL"
+			echo "  2) Oracle"
+			echo "  3) Go back to Main Menu"
+			echo
+			echo -n "===> "
+			read mysql_or_oracle
+			echo
+			echo "Would you like me to run the J_KC_Install_Demo.sh script?"
+			echo "  1) Yes"
+			echo "  2) No"
+			echo "  3) Go back to Main Menu"
+			echo
+			echo -n "===> "
+			read INSTALL_KC_DEMO
+			if [ "${INSTALL_KC_DEMO}" -eq "1" ]; then
+				echo
+				echo "Cool, I will run the J_KC_Install_Demo.sh script for you"
+				sleep 3
+			elif [ "${INSTALL_KC_DEMO}" -eq "2" ]; then
+				echo
+				echo "Cool, I will SKIP runnning the J_KC_Install_Demo.sh script for you"
+				sleep 3
+			elif [ "${INSTALL_KC_DEMO}" -eq "3" ]; then
+				main_menu
+			else
+				echo "Invalid input"
+				sleep 3
+				main_menu
+			fi
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				mysql_or_oracle_choice="MySQL"
+				KC_PROJECT_WAR_LINK="http://goo.gl/EvGiWY"
+				KC_PROJECT_WAR_NAME="kc-dev.war"
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+ 				mysql_or_oracle_choice="Oracle"
+ 				KC_PROJECT_WAR_LINK="http://goo.gl/eFcQA0"
+ 				KC_PROJECT_WAR_NAME="kc-dev.war"
+				if [ -f ${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} ]; then
+					echo " Good. Found your Oracle driver, ${ORACLE_DRIVER_NAME} in ${ORACLE_FILES_FOLDER}"
+				else
+					echo
+					echo "I can't find your Oracle driver, ${ORACLE_DRIVER_NAME}, in ${ORACLE_FILES_FOLDER}"
+					echo
+					echo "Either copy your Oracle driver, ${ORACLE_DRIVER_NAME}, in ${ORACLE_FILES_FOLDER}"
+					echo "or set 'ORACLE_DRIVER_NAME' in this script. "
+					echo
+					exit
+				fi
+			elif [ "$mysql_or_oracle" -eq "3" ]; then
+				main_menu
+			else
+				echo "Invalid input"
+				sleep 2
+				main_menu
+			fi
+
+			echo
+			echo "Installing Kuali Coeus for your ${mysql_or_oracle_choice} Database"
+			echo "==============================================="
+			echo "Installing Packages"
+			sleep 2
+			install_packages
+			echo "Stopping the firewall"
+			sleep 2
+			stop_firewall
+			echo "Doing some clean up"
+			sleep 2
+			clean_up_system
+			echo "Checking/Installing database"
+			sleep 2
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				install_mysql
+			fi
+			echo "Getting KC 6.0"
+			sleep 2
+			setup_kc60
+			echo "Running the SQL Scripts"
+			sleep 2
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				setup_mysql
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+				setup_oracle_db
+			fi
+			if [ "${INSTALL_KC_DEMO}" -eq "1" ]; then
+				cd ${KC_SOURCE_LOCATION}/db_scripts/main/
+				if [ "$mysql_or_oracle" -eq "1" ]; then
+					./J_KC_Install_Demo.sh
+				elif [ "$mysql_or_oracle" -eq "2" ]; then
+					./J_KC_Install_Oracle_Demo.sh
+				fi
+				cd ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS
+				if [ "$mysql_or_oracle" -eq "1" ]; then
+					./get_mysql_errors
+					grep ERROR ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/UPGRADE_ERRORS*
+					if [ $? -eq 0 ]; then
+						echo
+						echo " Errors above were FOUND!!!"
+						sleep 5
+					else
+						echo
+						echo " NO Errors were Found"
+						sleep 5
+					fi
+				elif [ "$mysql_or_oracle" -eq "2" ]; then
+					./get_oracle_errors
+					grep ORA- ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/UPGRADE_ERRORS*
+					if [ $? -eq 0 ]; then
+						echo
+						echo " Errors above were FOUND!!!"
+						sleep 5
+					else
+						echo
+						echo " NO Errors were Found"
+						sleep 5
+					fi
+				fi
+			fi
+			rm -fr ${CURRENT_WORKING_DIR}/LOGS
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				mysql_600_15043
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+ 				oracle_600_15043
+			fi
+			echo "Setting up tomcat"
+			sleep 2
+			setup_tomcat
+			echo "Setting and starting the KC application"
+			sleep 2
+			setup_kc_application
+			;;
+
+		[4] )
+			echo
+			echo "What Database do you want to setup?"
+			echo "  1) MySQL"
+			echo "  2) Oracle"
+			echo "  3) Go back to Main Menu"
+			echo
+			echo -n "===> "
+			read mysql_or_oracle
+			echo
+			echo "Would you like me to run the J_KC_Install_Demo.sh script?"
+			echo "  1) Yes"
+			echo "  2) No"
+			echo "  3) Go back to Main Menu"
+			echo
+			echo -n "===> "
+			read INSTALL_KC_DEMO
+			if [ "${INSTALL_KC_DEMO}" -eq "1" ]; then
+				echo
+				echo "Cool, I will run the J_KC_Install_Demo.sh script for you"
+				sleep 3
+			elif [ "${INSTALL_KC_DEMO}" -eq "2" ]; then
+				echo
+				echo "Cool, I will SKIP runnning the J_KC_Install_Demo.sh script for you"
+				sleep 3
+			elif [ "${INSTALL_KC_DEMO}" -eq "3" ]; then
+				main_menu
+			else
+				echo "Invalid input"
+				sleep 3
+				main_menu
+			fi
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				mysql_or_oracle_choice="MySQL"
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+ 				mysql_or_oracle_choice="Oracle"
+			elif [ "$mysql_or_oracle" -eq "3" ]; then
+				main_menu
+			else
+				echo "Invalid input"
+				sleep 2
+				main_menu
+			fi
+
+			echo
+			echo "Setting your ${mysql_or_oracle_choice} Database"
+			echo "==============================================="
+			echo "Doing some clean up"
+			sleep 2
+			clean_up_system
+			echo "Checking/Installing database"
+			sleep 2
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				install_mysql
+			fi
+			echo "Getting KC 6.0"
+			sleep 2
+			setup_kc60
+			echo "Running the SQL Scripts"
+			sleep 2
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				setup_mysql
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+				setup_oracle_db
+			fi
+			if [ "${INSTALL_KC_DEMO}" -eq "1" ]; then
+				cd ${KC_SOURCE_LOCATION}/db_scripts/main/
+				if [ "$mysql_or_oracle" -eq "1" ]; then
+					./J_KC_Install_Demo.sh
+				elif [ "$mysql_or_oracle" -eq "2" ]; then
+					./J_KC_Install_Oracle_Demo.sh
+				fi
+				cd ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS
+				if [ "$mysql_or_oracle" -eq "1" ]; then
+					./get_mysql_errors
+					grep ERROR ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/UPGRADE_ERRORS*
+					if [ $? -eq 0 ]; then
+						echo
+						echo " Errors above were FOUND!!!"
+						sleep 5
+					else
+						echo
+						echo " NO Errors were Found"
+						sleep 5
+					fi
+				elif [ "$mysql_or_oracle" -eq "2" ]; then
+					./get_oracle_errors
+					grep ORA- ${KC_SOURCE_LOCATION}/db_scripts/main/LOGS/UPGRADE_ERRORS*
+					if [ $? -eq 0 ]; then
+						echo
+						echo " Errors above were FOUND!!!"
+						sleep 5
+					else
+						echo
+						echo " NO Errors were Found"
+						sleep 5
+					fi
+				fi
+			fi
+			rm -fr ${CURRENT_WORKING_DIR}/LOGS
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				mysql_600_15043
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+ 				oracle_600_15043
+			fi
+			;;
+
+		[5] )
+			echo
+			echo "What Database are you using?"
+			echo "  1) MySQL"
+			echo "  2) Oracle"
+			echo "  3) Go back to Main Menu"
+			echo
+			echo -n "===> "
+			read mysql_or_oracle
+			if [ "$mysql_or_oracle" -eq "1" ]; then
+				mysql_or_oracle_choice="MySQL"
+				KC_PROJECT_WAR_LINK="http://goo.gl/EvGiWY"
+				KC_PROJECT_WAR_NAME="kc-dev.war"
+			elif [ "$mysql_or_oracle" -eq "2" ]; then
+ 				mysql_or_oracle_choice="Oracle"
+ 				KC_PROJECT_WAR_LINK="http://goo.gl/eFcQA0"
+ 				KC_PROJECT_WAR_NAME="kc-dev.war"
+				if [ -f ${ORACLE_FILES_FOLDER}/${ORACLE_DRIVER_NAME} ]; then
+					echo " Good. Found your Oracle driver, ${ORACLE_DRIVER_NAME} in ${ORACLE_FILES_FOLDER}"
+				else
+					echo
+					echo "I can't find your Oracle driver, ${ORACLE_DRIVER_NAME}, in ${ORACLE_FILES_FOLDER}"
+					echo
+					echo "Either copy your Oracle driver, ${ORACLE_DRIVER_NAME}, in ${ORACLE_FILES_FOLDER}"
+					echo "or set 'ORACLE_DRIVER_NAME' in this script. "
+					echo
+					exit
+				fi
+			elif [ "$mysql_or_oracle" -eq "3" ]; then
+				main_menu
+			else
+				echo "Invalid input"
+				sleep 2
+				main_menu
+			fi
+
+			echo
+			echo "Installing Kuali Coeus Application for your ${mysql_or_oracle_choice} Database"
+			echo "==============================================="
+			echo "Installing Packages"
+			sleep 2
+			install_packages
+			echo "Stopping the firewall"
+			sleep 2
+			stop_firewall
+			echo "Doing some clean up"
+			sleep 2
+			clean_up_system
+			echo "Getting KC 6.0"
+			sleep 2
+			setup_kc60
+			echo "Setting up tomcat"
+			sleep 2
+			setup_tomcat
+			echo "Setting and starting the KC application"
+			sleep 2
+			setup_kc_application
+			;;
+
+		[6] )
+			echo
+			echo "Running the SQL Upgrade Scripts"
+			echo "==============================="
+			run_database_upgrade
+			;;
+
+		[7] | [qQ] | [eE] )
+			exit
+			;;
+
+		*) 
+			echo
+			echo "Invalid input"
+			echo
+			sleep 2
+			main_menu
+			;;
+	esac
+}
+
+main_menu
