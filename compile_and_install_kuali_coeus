@@ -35,10 +35,10 @@ KC_CONFIG_XML_LOC="/opt/kuali/main/dev"
 CLEANUP_LOCATIONS="/opt/apache-tomcat /opt/kuali ${CURRENT_WORKING_DIR}/LOGS"
 
 # Tomcat - Spring Instrumentation
-# or download it from http://mvnrepository.com/artifact/org.springframework/spring-instrument
-SPRING_INSTRUMENTATION_LINK="http://central.maven.org/maven2/org/springframework/spring-instrument/3.2.12.RELEASE/spring-instrument-3.2.12.RELEASE.jar"
-SPRING_INSTRUMENTATION_NAME="spring-instrument-3.2.12.RELEASE.jar"
-### SPRING_INSTRUMENTATION=~/.m2/repository/org/springframework/spring-instrument/*.RELEASE/spring-instrument*.RELEASE.jar
+# or download it from http://mvnrepository.com/artifact/org.springframework/spring-instrument-tomcat
+SPRING_INSTRUMENTATION_TOMCAT_LINK="http://central.maven.org/maven2/org/springframework/spring-instrument-tomcat/3.2.12.RELEASE/spring-instrument-tomcat-3.2.12.RELEASE.jar"
+SPRING_INSTRUMENTATION_TOMCAT_NAME="spring-instrument-tomcat-3.2.12.RELEASE.jar"
+### SPRING_INSTRUMENTATION_TOMCAT=~/.m2/repository/org/springframework/spring-instrument-tomcat/*.RELEASE/spring-instrument-tomcat*.RELEASE.jar
 
 # Database Settings
 MYSQL_USERNAME="root"
@@ -561,10 +561,10 @@ function setup_tomcat {
 
 	cp ${CURRENT_WORKING_DIR}/tomcat_files/setenv.sh ${TOMCAT_LOCATION}/bin
 	cd ${TOMCAT_LOCATION}/lib
-	if [ -f ${SPRING_INSTRUMENTATION_NAME} ]; then
-		echo "Found ${SPRING_INSTRUMENTATION_NAME}"
+	if [ -f ${SPRING_INSTRUMENTATION_TOMCAT_NAME} ]; then
+		echo "Found ${SPRING_INSTRUMENTATION_TOMCAT_NAME}"
 	else
-		wget ${SPRING_INSTRUMENTATION_LINK}
+		wget ${SPRING_INSTRUMENTATION_TOMCAT_LINK}
 	fi
 	cd ${TOMCAT_LOCATION}/bin
 	chmod +x *.sh
