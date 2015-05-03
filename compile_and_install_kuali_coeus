@@ -566,6 +566,9 @@ function setup_tomcat {
 	else
 		wget ${SPRING_INSTRUMENTATION_TOMCAT_LINK}
 	fi
+	sed -i 's/<Context>/<Context>\n    <!-- END - For Kuali Coeus - Jeffery B. -->/' ${TOMCAT_LOCATION}/conf/context.xml
+	sed -i 's/<Context>/<Context>\n    <Loader loaderClass="org.springframework.instrument.classloading.tomcat.TomcatInstrumentableClassLoader"\/>/' ${TOMCAT_LOCATION}/conf/context.xml
+	sed -i 's/<Context>/<Context>\n\n    <!-- BEGIN - For Kuali Coeus -->/' ${TOMCAT_LOCATION}/conf/context.xml
 	cd ${TOMCAT_LOCATION}/bin
 	chmod +x *.sh
 }
