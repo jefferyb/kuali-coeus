@@ -334,17 +334,17 @@ function install_build_packages {
 		# if [ "$LINUX_DISTRIBUTION" = "CentOS" ]; then
 		if ! rpm -qa | grep -qw apache-maven; then
 			if [ ! -f /etc/yum.repos.d/epel-apache-maven.repo ]; then
-				sudo wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
+				wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
 			fi
-				# sudo yum install -y java-1.7.0-openjdk.x86_64 java-1.7.0-openjdk-devel.x86_64 apache-maven
-				sudo yum install -y java-1.7.0-openjdk-devel.x86_64 apache-maven git
+				# yum install -y java-1.7.0-openjdk.x86_64 java-1.7.0-openjdk-devel.x86_64 apache-maven
+				yum install -y java-1.7.0-openjdk-devel.x86_64 apache-maven git
 			fi
 		# fi
 
 		# # Install Java and Maven on RedHat
 		# if [ "$LINUX_DISTRIBUTION" = "Red Hat" ]; then
 		# 	if ! rpm -qa | grep -qw maven30; then
-		# 		sudo yum install -y java-1.7.0-openjdk.x86_64 java-1.7.0-openjdk-devel.x86_64 maven30
+		# 		yum install -y java-1.7.0-openjdk.x86_64 java-1.7.0-openjdk-devel.x86_64 maven30
 		# 	fi
 		# fi
 	fi
