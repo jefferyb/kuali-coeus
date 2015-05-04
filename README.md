@@ -8,6 +8,21 @@ This script is meant to automate the various steps involved in installing Kuali 
 
 ## Getting Started
 
+If you want to use your own username, password and database, edit:
+compile_and_install_kuali_coeus, kuali_files/J_KC_Install*, kuali_files/kc-config* and in mysql_files/configure_mysql.sql
+
+For MySQL
+KC_DB_USERNAME="username"
+KC_DB_PASSWORD="password"
+KC_DB_NAME="kuali"
+
+For Oracle
+KC_DB_ORACLE_USERNAME="system"
+KC_DB_ORACLE_PASSWORD="oracle"
+KC_DB_ORACLE_NAME="(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=XE)))"
+
+Otherwise, to use the default settings, do:
+
 1. git clone https://github.com/jefferyb/kuali-coeus.git
 2. cd kuali-coeus
 3. check/edit the defined settings in the compile_and_install_kuali_coeus script. Otherwise, it will use the default settings. You may also need to check/edit the install scripts and the kc-config.xml in the kuali_files 

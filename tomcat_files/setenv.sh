@@ -12,5 +12,5 @@ CATALINA_PID=$CATALINA_HOME/conf/catalina.pid
  JAVA_OPTS="$JAVA_OPTS $DEBUG_OPTS -Dalt.config.location=/opt/kuali/main/dev/kc-config.xml"
 
 # Added for Spring Instrumentation
- CATALINA_OPTS="$CATALINA_OPTS -javaagent:/opt/apache-tomcat/tomcat8/lib/spring-instrument-tomcat-3.2.12.RELEASE.jar"
+# CATALINA_OPTS="$CATALINA_OPTS -javaagent:/opt/apache-tomcat/tomcat8/lib/spring-instrument-tomcat-3.2.12.RELEASE.jar"
 # END
