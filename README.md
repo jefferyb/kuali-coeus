@@ -4,35 +4,21 @@ This script is meant to automate the various steps involved in installing Kuali 
 
 ## What's new?
 
-* Install of KC 1504.3
+* Install of KC 1505
 
 ## Getting Started
 
-If you want to use your own username, password and database, edit:
-compile_and_install_kuali_coeus, kuali_files/J_KC_Install*, kuali_files/kc-config* and in mysql_files/configure_mysql.sql
-
-For MySQL
-KC_DB_USERNAME="username"
-KC_DB_PASSWORD="password"
-KC_DB_NAME="kuali"
-
-For Oracle
-KC_DB_ORACLE_USERNAME="system"
-KC_DB_ORACLE_PASSWORD="oracle"
-KC_DB_ORACLE_NAME="(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=XE)))"
-
-Otherwise, to use the default settings, do:
-
 1. git clone https://github.com/jefferyb/kuali-coeus.git
 2. cd kuali-coeus
-3. check/edit the defined settings in the compile_and_install_kuali_coeus script. Otherwise, it will use the default settings. You may also need to check/edit the install scripts and the kc-config.xml in the kuali_files 
-4. run ./compile_and_install_kuali_coeus as root or with sudo as it may need to install some packages
+3. run ./install_kuali_coeus as root or with sudo as it may need to install some packages
+4. Once it is up, you should be able to login as "admin" at http://$(hostname):8080/kc-dev
+5. You can ingest rice-xml-${KC_PROJECT_VERSION}.zip and then coeus-xml-${KC_PROJECT_VERSION}.zip ( the XML files ) that you can find in the DOWNLOADS folder
 
 ## Warning
 
-This script doesn't install an Oracle database. You'll have to have and edit compile_and_install_kuali_coeus, kc-config_oracle.xml, J_KC_Install_Oracle.sh and J_KC_Install_Oracle_Demo.sh, if you're wanting to install the demo too, to give it the username, password and SID info. 
+This script doesn't install an Oracle database. You'll have to have one ready and provide the needed info.
 
-For MySQL, if you're running this on a fresh install, it will install MySQL/MariaDB if it's not installed. If you have one installed, you'll have to edit compile_and_install_kuali_coeus, kc-config.xml, J_KC_Install.sh and J_KC_Install_Demo.sh, if you're planning to install the demo.
+For MySQL, if you're running this on a fresh install, it will install MySQL/MariaDB if it's not installed, and you can find your MySQL root generated password at "config_files/Your_MySQL_Root_Password".
 
 **_Warning:_** _This will overwrite your MySQL config file(my.cnf), so if you already have one configured the way you like, make a backup before running the script..._
 
