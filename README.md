@@ -4,7 +4,7 @@ This script is meant to automate the various steps involved in installing Kuali 
 
 ## What's new?
 
-* Install of KC 1505
+* Now, it'll ask to input your own database information
 
 ## Getting Started
 
