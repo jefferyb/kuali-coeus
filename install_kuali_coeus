@@ -52,8 +52,8 @@ CLEANUP_LOCATIONS="/opt/apache-tomcat /opt/kuali ${CURRENT_WORKING_DIR}/SQL_LOGS
 KC_PROJECT_WAR_NAME="kc-dev.war"
 KC_PROJECT_FOLDER="${CURRENT_WORKING_DIR}/workspace/kc"
 KC_PROJECT_LINK="https://github.com/kuali/kc"
-KC_PROJECT_RICE_XML="https://goo.gl/nPZpJm"
-KC_PROJECT_COEUS_XML="https://goo.gl/tZmmnh"
+KC_PROJECT_RICE_XML="https://goo.gl/8hnZYq"
+KC_PROJECT_COEUS_XML="https://goo.gl/nN3jNy"
 # SchemaSpy Project
 SCHEMASPY_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/workspace/schemaspy"
 SCHEMASPY_PROJECT_LINK="https://github.com/kuali/schemaspy"
@@ -446,6 +446,7 @@ function setup_kc_application {
 	echo "PS: remember to turn off or configure your firewall on the server... ( Your firewall should be off, but make sure )"
 	echo
 	echo "And you should ingest rice-xml-${KC_PROJECT_VERSION}.zip and then coeus-xml-${KC_PROJECT_VERSION}.zip ( the XML files ) that you can find in the ${CURRENT_WORKING_DIR}/DOWNLOADS folder "
+	echo "Or download rice-xml-${KC_PROJECT_VERSION}.zip (${KC_PROJECT_RICE_XML}) and then coeus-xml-${KC_PROJECT_VERSION}.zip (${KC_PROJECT_COEUS_XML})"
 	echo
 	echo
 	echo
@@ -654,7 +655,7 @@ function ask_user_information {
 	#### MySQL SECTION ###
 	if [ "$mysql_or_oracle" -eq "1" ]; then
 		mysql_or_oracle_choice="MySQL"
-		KC_PROJECT_WAR_LINK="https://goo.gl/EtZHKw"
+		KC_PROJECT_WAR_LINK="https://goo.gl/RjyrIw"
 		KC_PROJECT_WAR_NAME="kc-dev.war"
 		echo
 		echo "Enter KC Database Username (Default: kcusername)"
@@ -712,7 +713,7 @@ function ask_user_information {
 	#### ORACLE SECTION ###
 	elif [ "$mysql_or_oracle" -eq "2" ]; then
 		mysql_or_oracle_choice="Oracle"
-		KC_PROJECT_WAR_LINK="https://goo.gl/13npv1"
+		KC_PROJECT_WAR_LINK="https://goo.gl/Y4D8kg"
 		KC_PROJECT_WAR_NAME="kc-dev.war"
 		echo
 		echo "Enter KC Database Username (Default: system)"
