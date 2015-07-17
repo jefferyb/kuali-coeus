@@ -20,6 +20,11 @@ CURRENT_WORKING_DIR=$(pwd)
 # IP_ADDRESS=`ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/'`
 SYSTEM_HOSTNAME=$(hostname -f)
 
+# Tomcat - Spring Instrumentation
+SPRING_INSTRUMENTATION_TOMCAT_VERSION="3.2.13"
+SPRING_INSTRUMENTATION_TOMCAT_LINK="http://central.maven.org/maven2/org/springframework/spring-instrument-tomcat/${SPRING_INSTRUMENTATION_TOMCAT_VERSION}.RELEASE/spring-instrument-tomcat-${SPRING_INSTRUMENTATION_TOMCAT_VERSION}.RELEASE.jar"
+SPRING_INSTRUMENTATION_TOMCAT_NAME="spring-instrument-tomcat-${SPRING_INSTRUMENTATION_TOMCAT_VERSION}.RELEASE.jar"
+
 # MySQL Connector for Tomcat
 MYSQL_CONNECTOR_LINK="http://mirror.cogentco.com/pub/mysql/Connector-J/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.zip"
 MYSQL_CONNECTOR_ZIP_FILE="mysql-connector-java-${MYSQL_CONNECTOR_VERSION}.zip"
@@ -338,14 +343,6 @@ function setup_tomcat {
 	TOMCAT_FILE="apache-tomcat-${TOMCAT_VERSION}.tar.gz"
 	CATALINA_HOME="/opt/apache-tomcat/tomcat${TOMCAT_MAJOR}"
 	rm -f /tmp/get_version
-
-	# Tomcat - Spring Instrumentation
-	# SPRING_INSTRUMENTATION_TOMCAT_VERSION="3.2.13"
-	wget https://github.com/kuali/kc  -O /tmp/get_spring_instrumentation_version
-	SPRING_INSTRUMENTATION_TOMCAT_VERSION=$(grep -A 7 "Install Spring Instrumentation" /tmp/get_spring_instrumentation_version | grep spring-instrument-tomcat | sed 's/<.*spring-instrument-tomcat\///' | sed 's/.RELEASE.*//')
-	SPRING_INSTRUMENTATION_TOMCAT_LINK="http://central.maven.org/maven2/org/springframework/spring-instrument-tomcat/${SPRING_INSTRUMENTATION_TOMCAT_VERSION}.RELEASE/spring-instrument-tomcat-${SPRING_INSTRUMENTATION_TOMCAT_VERSION}.RELEASE.jar"
-	SPRING_INSTRUMENTATION_TOMCAT_NAME="spring-instrument-tomcat-${SPRING_INSTRUMENTATION_TOMCAT_VERSION}.RELEASE.jar"
-	rm -f /tmp/get_spring_instrumentation_version
 
 	mkdir -p ${CURRENT_WORKING_DIR}/DOWNLOADS
 	cd ${CURRENT_WORKING_DIR}/DOWNLOADS
@@ -797,9 +794,9 @@ function main_menu {
 	echo "What would you like to do?"
 	echo "  1) Compile and Install Kuali Coeus ${KC_PROJECT_VERSION}"
 	echo "  2) Compile Kuali Coeus ${KC_PROJECT_VERSION}"
-	echo "  3) Install NEW Kuali Coeus ${KC_PROJECT_VERSION} (Database + Application)"
+	echo "  3) Install NEW Kuali Coeus ${KC_PROJECT_VERSION} (Database + Tomcat)"
 	echo "  4) Setup a NEW ${KC_PROJECT_VERSION} Database (NO Application)"
-	echo "  5) Setup a Kuali Coeus ${KC_PROJECT_VERSION} Application (NO Database)"
+	echo "  5) Setup Tomcat for Kuali Coeus ${KC_PROJECT_VERSION} (NO Database)"
 	echo "  6) Run the SQL Install/Upgrade Scripts to ${KC_PROJECT_VERSION}"
 	echo "  7) Exit"
 	echo
