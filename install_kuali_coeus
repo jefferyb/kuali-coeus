@@ -391,6 +391,7 @@ function setup_kc_application {
 	mkdir -p ${KC_CONFIG_XML_LOC}
 	cp ${CURRENT_WORKING_DIR}/setup_files/kc-config.xml ${KC_CONFIG_XML_LOC}/kc-config.xml
 	sed -i "s/127.0.0.1/${SYSTEM_HOSTNAME}/" ${KC_CONFIG_XML_LOC}/kc-config.xml
+	sed -i "s/Kuali-Coeus-Version/KualiCo ${KC_PROJECT_VERSION}/" ${KC_CONFIG_XML_LOC}/kc-config.xml
 
 	### Get the current war file
 	mkdir -p ${CURRENT_WORKING_DIR}/DOWNLOADS
