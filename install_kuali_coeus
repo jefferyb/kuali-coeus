@@ -7,7 +7,7 @@
 
 #DEFINE
 TOMCAT_MAJOR="8"
-KC_PROJECT_VERSION="1506"
+KC_PROJECT_VERSION=$(curl -s https://raw.githubusercontent.com/kuali/kc/master/pom.xml | egrep -m 1 "<version>" | sed 's/<version>//' | sed 's/\..*//' | awk '{print $1}')
 MYSQL_CONNECTOR_VERSION="5.1.34"
 
 
