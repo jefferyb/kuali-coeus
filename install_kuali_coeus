@@ -45,7 +45,7 @@ ORACLE_SQL_FILES_FOLDER="${CURRENT_WORKING_DIR}/workspace/kc/coeus-db/coeus-db-s
 
 # Oracle Settings
 SETUP_FILES_FOLDER="${CURRENT_WORKING_DIR}/setup_files"
-ORACLE_DRIVER_NAME="ojdbc6.jar"
+ORACLE_DRIVER_NAME="ojdbc7.jar"
 
 # Kuali Release File
 KC_CONFIG_XML_LOC="/opt/kuali/main/dev"
@@ -57,8 +57,8 @@ CLEANUP_LOCATIONS="/opt/apache-tomcat /opt/kuali ${CURRENT_WORKING_DIR}/SQL_LOGS
 KC_PROJECT_WAR_NAME="kc-dev.war"
 KC_PROJECT_FOLDER="${CURRENT_WORKING_DIR}/workspace/kc"
 KC_PROJECT_LINK="https://github.com/kuali/kc"
-KC_PROJECT_RICE_XML="https://goo.gl/8hnZYq"
-KC_PROJECT_COEUS_XML="https://goo.gl/nN3jNy"
+KC_PROJECT_RICE_XML="http://www.kuali.erafiki.com/${KC_PROJECT_VERSION}/xml_files/rice-xml-${KC_PROJECT_VERSION}.zip"
+KC_PROJECT_COEUS_XML="http://www.kuali.erafiki.com/${KC_PROJECT_VERSION}/xml_files/coeus-xml-${KC_PROJECT_VERSION}.zip"
 # SchemaSpy Project
 SCHEMASPY_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/workspace/schemaspy"
 SCHEMASPY_PROJECT_LINK="https://github.com/kuali/schemaspy"
@@ -73,6 +73,19 @@ KC_S2SGEN_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/workspace/kc-s2sgen"
 KC_S2SGEN_PROJECT_LINK="https://github.com/kuali/kc-s2sgen"
 
 # FUNCTIONS
+function install_this_package () {
+	if [ -f /etc/debian_version ]; then
+		apt-get update
+		apt-get install -y $1
+	elif [ -f /etc/redhat-release ]; then
+		yum install -y $1
+	fi
+}
+
+function check_if_package_is_installed () {
+	command -v $1 >/dev/null 2>&1 || { echo >&2 "Couldn't find $1 on your system. Installing it: "; install_this_package $1; }
+}
+
 function clone_kuali_coeus {
 	if [ -d ${KC_PROJECT_FOLDER} ]; then
 		echo
@@ -89,6 +102,7 @@ function clone_kuali_coeus {
 		echo "-------------------------------"
 		mkdir -p ${CURRENT_WORKING_DIR}/workspace
 		cd ${CURRENT_WORKING_DIR}/workspace
+		check_if_package_is_installed git
 		git clone ${KC_PROJECT_LINK}
 	fi
 }
@@ -187,7 +201,7 @@ function compile_kuali {
 		mvn clean compile source:jar javadoc:jar install -Dgrm.off=true
 	fi
 	if [ "$mysql_or_oracle" -eq "2" ]; then
-		mvn install:install-file -Dfile=${SETUP_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=10.2.0.3.0 -Dpackaging=jar
+		mvn install:install-file -Dfile=${SETUP_FILES_FOLDER}/${ORACLE_DRIVER_NAME} -DgroupId=com.oracle -DartifactId=ojdbc7 -Dversion=12.1.0.2 -Dpackaging=jar
 		mvn -P oracle clean compile source:jar javadoc:jar install -Dgrm.off=true
 	fi
 
@@ -207,34 +221,37 @@ function compile_kuali {
 	rm -fr META-INF org
 }
 
-function install_this_package () {
-	if [ -f /etc/debian_version ]; then
-		apt-get update
-		apt-get install -y $1
-	elif [ -f /etc/redhat-release ]; then
-		yum install -y $1
-	fi
-}
-
-function check_if_package_is_installed () {
-	command -v $1 >/dev/null 2>&1 || { echo >&2 "Couldn't find $1 on your system. Installing it: "; install_this_package $1; }
-}
-
 function install_build_packages {
 	# Debian/Ubuntu Packages
 	if [ -f /etc/debian_version ]; then
 			# Install Java and Maven on a Debian System
+			apt-get update
+			apt-get install -y software-properties-common
+			if [ "$(cat /etc/lsb-release | grep RELEASE | sed 's/.*=//')" == "12.04" ]; then
+				if [ ! -f /etc/apt/sources.list.d/webupd8team-java-precise.list ]; then
+					apt-get install -y python-software-properties
+					add-apt-repository -y ppa:webupd8team/java
+					echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
+					apt-get install -y oracle-java8-installer
+				fi
+			fi
 			if [ "$(cat /etc/lsb-release | grep RELEASE | sed 's/.*=//')" == "14.04" ]; then
-				if [ ! -f /etc/apt/trusted.gpg.d/openjdk-r-ppa.gpg ]; then
-					apt-get update
-					apt-get install -y software-properties-common
+				if [ ! -f /etc/apt/sources.list.d/openjdk-r-ppa-trusty.list ]; then
 					add-apt-repository -y ppa:openjdk-r/ppa
 				fi
 			fi
+			if [ ! -f /etc/apt/sources.list.d/andrei-pozolotin-maven3-trusty.list ]; then
+				add-apt-repository -y ppa:andrei-pozolotin/maven3
+			fi
 			apt-get update
-			apt-get install -y openjdk-8-jdk maven git zip
+			apt-get install -y openjdk-8-jdk maven3 git zip npm
 			# To ensure to use java version 8
-			apt-get remove -y openjdk-7-jre-headless
+			# apt-get remove -y openjdk-7-jre-headless
+			update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
+			update-alternatives --set javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac
+			if [ "$(cat /etc/lsb-release | grep RELEASE | sed 's/.*=//')" == "12.04" ]; then
+				apt-get install -y oracle-java8-set-default
+			fi
 	fi
 
 	# RedHat/Centos Packages
@@ -243,7 +260,8 @@ function install_build_packages {
 				yum install -y wget
 				wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
 			fi
-				yum install -y java-1.8.0-openjdk-devel.x86_64 apache-maven git zip
+				yum install -y epel-release
+				yum install -y java-1.8.0-openjdk-devel.x86_64 apache-maven git zip npm make
 				# Set the correct java version, version 8
 				update-alternatives --set java /usr/lib/jvm/java-1.8.*-openjdk-1.8.*.x86_64/jre/bin/java
 				update-alternatives --set javac /usr/lib/jvm/java-1.8.*-openjdk-1.8.*.x86_64/bin/javac
@@ -260,7 +278,9 @@ function install_packages {
 		apt-get update
 		apt-get install -y wget zip unzip openjdk-8-jdk git tar graphviz
 		# To ensure to use java version 8
-		apt-get remove -y openjdk-7-jre-headless
+		# apt-get remove -y openjdk-7-jre-headless
+		update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
+		update-alternatives --set javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac
 	elif [ -f /etc/redhat-release ]; then
 		yum install -y wget zip unzip java-1.8.0-openjdk git tar graphviz
 	fi
@@ -653,7 +673,7 @@ function ask_user_information {
 	#### MySQL SECTION ###
 	if [ "$mysql_or_oracle" -eq "1" ]; then
 		mysql_or_oracle_choice="MySQL"
-		KC_PROJECT_WAR_LINK="https://goo.gl/RjyrIw"
+		KC_PROJECT_WAR_LINK="http://www.kuali.erafiki.com/${KC_PROJECT_VERSION}/mysql/kc-dev.war"
 		KC_PROJECT_WAR_NAME="kc-dev.war"
 		echo
 		echo "Enter KC Database Username (Default: kcusername)"
@@ -711,7 +731,7 @@ function ask_user_information {
 	#### ORACLE SECTION ###
 	elif [ "$mysql_or_oracle" -eq "2" ]; then
 		mysql_or_oracle_choice="Oracle"
-		KC_PROJECT_WAR_LINK="https://goo.gl/Y4D8kg"
+		KC_PROJECT_WAR_LINK="http://www.kuali.erafiki.com/${KC_PROJECT_VERSION}/oracle/kc-dev.war"
 		KC_PROJECT_WAR_NAME="kc-dev.war"
 		echo
 		echo "Enter KC Database Username (Default: system)"
@@ -828,7 +848,7 @@ function main_menu {
 			sleep 1
 			# Make sure that sqlplus is installed for oracle
 			if [ "$mysql_or_oracle" -eq "2" ]; then
-				command -v sqlplus64 >/dev/null 2>&1 || { echo >&2 "Couldn't find sqlplus64 on your system. Installing it: "; install_sqlplus; }
+				command -v sqlplus >/dev/null 2>&1 || { echo >&2 "Couldn't find sqlplus64 on your system. Installing it: "; install_sqlplus; }
 			fi
 			setup_kuali_database
 			echo "Setting up tomcat"
@@ -899,7 +919,7 @@ function main_menu {
 			sleep 1
 			# Make sure that sqlplus is installed for oracle
 			if [ "$mysql_or_oracle" -eq "2" ]; then
-				command -v sqlplus64 >/dev/null 2>&1 || { echo >&2 "Couldn't find sqlplus64 on your system. Installing it: "; install_sqlplus; }
+				command -v sqlplus >/dev/null 2>&1 || { echo >&2 "Couldn't find sqlplus64 on your system. Installing it: "; install_sqlplus; }
 			fi
 			setup_kuali_database
 			echo "Setting up tomcat"
@@ -928,7 +948,7 @@ function main_menu {
 			sleep 1
 			# Make sure that sqlplus is installed for oracle
 			if [ "$mysql_or_oracle" -eq "2" ]; then
-				command -v sqlplus64 >/dev/null 2>&1 || { echo >&2 "Couldn't find sqlplus64 on your system. Installing it: "; install_sqlplus; }
+				command -v sqlplus >/dev/null 2>&1 || { echo >&2 "Couldn't find sqlplus64 on your system. Installing it: "; install_sqlplus; }
 			fi
 			setup_kuali_database
 			;;
@@ -993,7 +1013,7 @@ function main_menu {
 			echo "==================================="
 			# Make sure that sqlplus is installed for oracle
 			if [ "$mysql_or_oracle" -eq "2" ]; then
-				command -v sqlplus64 >/dev/null 2>&1 || { echo >&2 "Couldn't find sqlplus64 on your system. Installing it: "; install_sqlplus; }
+				command -v sqlplus >/dev/null 2>&1 || { echo >&2 "Couldn't find sqlplus64 on your system. Installing it: "; install_sqlplus; }
 			fi
 			run_sql_database_scripts
 			;;
