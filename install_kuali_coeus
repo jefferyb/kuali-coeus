@@ -478,7 +478,7 @@ function exec_sql_scripts() {
 	echo
 	if [ "$mysql_or_oracle" -eq "1" ]; then
 		cd ${MYSQL_SQL_FILES_FOLDER}
-		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq ) )
+		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq | sort -n) )
 		for version in ${INSTALL_SQL_VERSION[@]:${1}}
 		do
 			# INSTALL THE MYSQL FILES
@@ -511,7 +511,7 @@ function exec_sql_scripts() {
 		fi
 	elif [ "$mysql_or_oracle" -eq "2" ]; then
 		cd ${ORACLE_SQL_FILES_FOLDER}
-		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq ) )
+		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq | sort -n) )
 		for version in ${INSTALL_SQL_VERSION[@]:${1}}
 		do
 			# INSTALL THE MYSQL FILES
