@@ -5,6 +5,29 @@
 		# mysql -u${KC_DB_USERNAME} -p${KC_DB_PASSWORD} ${KC_DB_NAME} < grm/V602_011__jasper_feature_flag.sql > ${CURRENT_WORKING_DIR}/SQL_LOGS/V602_011__JASPER_FEATURE_FLAG.log 2>&1
 
 
+function install_this_package () {
+	if [ -f /etc/debian_version ]; then
+		apt-get update
+		apt-get install -y $1
+	elif [ -f /etc/redhat-release ]; then
+		yum install -y $1
+	fi
+}
+
+function check_if_package_is_installed () {
+	command -v $1 >/dev/null 2>&1 || { echo >&2 "Couldn't find $1 on your system. Installing it: "; install_this_package $1; }
+}
+
+# Make sure only root can run our script
+if [[ $EUID -ne 0 ]]; then
+  echo
+  echo "This script must be run as root" 1>&2
+  echo
+  exit 1
+else
+  check_if_package_is_installed curl
+fi
+
 #DEFINE
 TOMCAT_MAJOR="8"
 KC_PROJECT_VERSION=$(curl -s https://raw.githubusercontent.com/kuali/kc/master/pom.xml | egrep -m 1 "<version>" | sed 's/<version>//' | sed 's/\..*//' | awk '{print $1}')
@@ -73,19 +96,6 @@ KC_S2SGEN_PROJECT_FORLDER="${CURRENT_WORKING_DIR}/workspace/kc-s2sgen"
 KC_S2SGEN_PROJECT_LINK="https://github.com/kuali/kc-s2sgen"
 
 # FUNCTIONS
-function install_this_package () {
-	if [ -f /etc/debian_version ]; then
-		apt-get update
-		apt-get install -y $1
-	elif [ -f /etc/redhat-release ]; then
-		yum install -y $1
-	fi
-}
-
-function check_if_package_is_installed () {
-	command -v $1 >/dev/null 2>&1 || { echo >&2 "Couldn't find $1 on your system. Installing it: "; install_this_package $1; }
-}
-
 function clone_kuali_coeus {
 	if [ -d ${KC_PROJECT_FOLDER} ]; then
 		echo
@@ -419,6 +429,11 @@ function setup_kc_application {
 	if [ -f ${KC_PROJECT_WAR_NAME} ]; then
 		echo "Found ${KC_PROJECT_WAR_NAME}"
 	else
+		if [ "$mysql_or_oracle" -eq "1" ]; then
+			KC_PROJECT_WAR_LINK="http://www.kuali.erafiki.com/${KC_PROJECT_VERSION}/mysql/kc-dev.war"
+		elif [ "$mysql_or_oracle" -eq "2" ]; then
+			KC_PROJECT_WAR_LINK="http://www.kuali.erafiki.com/${KC_PROJECT_VERSION}/oracle/kc-dev.war"
+		fi
 		wget ${KC_PROJECT_WAR_LINK} -O ${KC_PROJECT_WAR_NAME}
 	fi
 
@@ -498,7 +513,7 @@ function exec_sql_scripts() {
 	echo
 	if [ "$mysql_or_oracle" -eq "1" ]; then
 		cd ${MYSQL_SQL_FILES_FOLDER}
-		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq ) )
+		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq | sort -n ) )
 		for version in ${INSTALL_SQL_VERSION[@]:${1}}
 		do
 			# INSTALL THE MYSQL FILES
@@ -531,7 +546,7 @@ function exec_sql_scripts() {
 		fi
 	elif [ "$mysql_or_oracle" -eq "2" ]; then
 		cd ${ORACLE_SQL_FILES_FOLDER}
-		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq ) )
+		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq | sort -n ) )
 		for version in ${INSTALL_SQL_VERSION[@]:${1}}
 		do
 			# INSTALL THE MYSQL FILES
