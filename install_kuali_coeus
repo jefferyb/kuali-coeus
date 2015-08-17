@@ -549,7 +549,7 @@ function exec_sql_scripts() {
 		INSTALL_SQL_VERSION=( $(ls -v *.sql | grep -v INSTALL_TEMPLATE | sed 's/_.*//g' | uniq | sort -n ) )
 		for version in ${INSTALL_SQL_VERSION[@]:${1}}
 		do
-			# INSTALL THE MYSQL FILES
+			# INSTALL THE ORACLE SQL FILES
 			echo "Installing/upgrading to version ${version}"
 			if [ -f ${version}_oracle_rice_server_upgrade.sql ]; then
 				sqlplus ${KC_DB_USERNAME}/${KC_DB_PASSWORD}@${KC_DB_NAME} < ${version}_oracle_rice_server_upgrade.sql > ${CURRENT_WORKING_DIR}/SQL_LOGS/${version}_ORACLE_RICE_SERVER_UPGRADE.log 2>&1
@@ -564,7 +564,7 @@ function exec_sql_scripts() {
 				sqlplus ${KC_DB_USERNAME}/${KC_DB_PASSWORD}@${KC_DB_NAME} < ${version}_oracle_kc_upgrade.sql > ${CURRENT_WORKING_DIR}/SQL_LOGS/${version}_ORACLE_KC_UPGRADE.log 2>&1
 			fi
 			# INSTALL THE DEMO FILES
-			if [ "${INSTALL_KC_DEMO}" -eq "2" ]; then
+			if [ "${INSTALL_KC_DEMO}" -eq "1" ]; then
 				if [ -f ${version}_oracle_rice_demo.sql ]; then
 					sqlplus ${KC_DB_USERNAME}/${KC_DB_PASSWORD}@${KC_DB_NAME} < ${version}_oracle_rice_demo.sql > ${CURRENT_WORKING_DIR}/SQL_LOGS/${version}_ORACLE_RICE_DEMO.log 2>&1
 				fi
