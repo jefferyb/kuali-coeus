@@ -235,71 +235,74 @@ function compile_kuali {
 function install_build_packages {
 	# Debian/Ubuntu Packages
 	if [ -f /etc/debian_version ]; then
-			# Install Java and Maven on a Debian System
+		apt-get update
+		apt-get install -y git zip
+
+		# Install Oracle Java 8
+		if [ ! -f /etc/apt/sources.list.d/webupd8team-java-precise.list ]; then
+			apt-get install -y software-properties-common python-software-properties
+			add-apt-repository -y ppa:webupd8team/java
+			echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
 			apt-get update
-			apt-get install -y software-properties-common
-			if [ "$(cat /etc/lsb-release | grep RELEASE | sed 's/.*=//')" == "12.04" ]; then
-				if [ ! -f /etc/apt/sources.list.d/webupd8team-java-precise.list ]; then
-					apt-get install -y python-software-properties
-					add-apt-repository -y ppa:webupd8team/java
-					echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
-					apt-get install -y oracle-java8-installer
-				fi
-			fi
-			if [ "$(cat /etc/lsb-release | grep RELEASE | sed 's/.*=//')" == "14.04" ]; then
-				if [ ! -f /etc/apt/sources.list.d/openjdk-r-ppa-trusty.list ]; then
-					add-apt-repository -y ppa:openjdk-r/ppa
-				fi
-			fi
-			if [ ! -f /etc/apt/sources.list.d/andrei-pozolotin-maven3-trusty.list ]; then
-				add-apt-repository -y ppa:andrei-pozolotin/maven3
-			fi
-			apt-get update
-			apt-get install -y openjdk-8-jdk maven3 git zip npm
-			# To ensure to use java version 8
-			# apt-get remove -y openjdk-7-jre-headless
-			update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
-			update-alternatives --set javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac
-			if [ "$(cat /etc/lsb-release | grep RELEASE | sed 's/.*=//')" == "12.04" ]; then
-				apt-get install -y oracle-java8-set-default
-			fi
+			apt-get install -y oracle-java8-installer
+		fi
+
+		# Install the latest Maven from maven.apache.org
+		check_if_package_is_installed curl
+		MAVEN_VERSION=$(curl -s https://maven.apache.org/download.cgi | grep "Downloading Apache Maven " | sed 's/.*Downloading Apache Maven //' | sed 's/<.*//')
+		curl -fsSL http://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz | tar xzf - -C /usr/share \
+		  && mv /usr/share/apache-maven-$MAVEN_VERSION /usr/share/maven \
+		  && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
 	fi
 
 	# RedHat/Centos Packages
 	if [ -f "/etc/redhat-release" ]; then
-			if [ ! -f /etc/yum.repos.d/epel-apache-maven.repo ]; then
-				yum install -y wget
-				wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
-			fi
-				yum install -y epel-release
-				yum install -y java-1.8.0-openjdk-devel.x86_64 apache-maven git zip npm make
-				# Set the correct java version, version 8
-				update-alternatives --set java /usr/lib/jvm/java-1.8.*-openjdk-1.8.*.x86_64/jre/bin/java
-				update-alternatives --set javac /usr/lib/jvm/java-1.8.*-openjdk-1.8.*.x86_64/bin/javac
+		yum install -y wget git zip make gcc-c++
+
+		# Install the latest Maven from maven.apache.org
+		check_if_package_is_installed curl
+		MAVEN_VERSION=$(curl -s https://maven.apache.org/download.cgi | grep "Downloading Apache Maven " | sed 's/.*Downloading Apache Maven //' | sed 's/<.*//')
+		curl -fsSL http://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz | tar xzf - -C /usr/share \
+		  && mv /usr/share/apache-maven-$MAVEN_VERSION /usr/share/maven \
+		  && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
+
+		# Install Java from the oracle site
+		if [ $(uname -m) == 'x86_64' ]; then
+			wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jdk/8u60-b27/jdk-8u60-linux-x64.rpm
+			rpm -Uvh jdk-8u60-linux-x64.rpm
+		else
+			wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jdk/8u60-b27/jdk-8u60-linux-i586.rpm
+			rpm -Uvh jdk-8u60-linux-i586.rpm
+		fi
 	fi
 }
 
 function install_packages {
 	if [ -f /etc/debian_version ]; then
-		if [ "$(cat /etc/lsb-release | grep RELEASE | sed 's/.*=//')" == "14.04" ]; then
+		if [ ! -f /etc/apt/sources.list.d/webupd8team-java-precise.list ]; then
+			apt-get install -y software-properties-common python-software-properties
+			add-apt-repository -y ppa:webupd8team/java
+			echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
 			apt-get update
-			apt-get install -y software-properties-common
-			add-apt-repository -y ppa:openjdk-r/ppa
+			apt-get install -y oracle-java8-installer
 		fi
-		apt-get update
-		apt-get install -y wget zip unzip openjdk-8-jdk git tar graphviz
-		# To ensure to use java version 8
-		# apt-get remove -y openjdk-7-jre-headless
-		update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
-		update-alternatives --set javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac
+		apt-get install -y wget zip unzip git tar graphviz
 	elif [ -f /etc/redhat-release ]; then
-		yum install -y wget zip unzip java-1.8.0-openjdk git tar graphviz
+		# Install Java from the oracle site
+		if [ $(uname -m) == 'x86_64' ]; then
+			wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jdk/8u60-b27/jdk-8u60-linux-x64.rpm
+			rpm -Uvh jdk-8u60-linux-x64.rpm
+		else
+			wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jdk/8u60-b27/jdk-8u60-linux-i586.rpm
+			rpm -Uvh jdk-8u60-linux-i586.rpm
+		fi
+		yum install -y wget zip unzip git tar graphviz
 	fi
 }
 
 function clean_up_system {
 	### DOING SOME CLEAN-UP
-	rm -fr ${CLEANUP_LOCATIONS}
+	rm -fr ${CLEANUP_LOCATIONS} jdk-8u60-linux*
 
 	# Reset Database Related Files
 	CLEANUP_DB="${CURRENT_WORKING_DIR}/SQL_LOGS/ ${CURRENT_WORKING_DIR}/setup_files/configure_mysql.sql ${CURRENT_WORKING_DIR}/setup_files/kc-config.xml"
