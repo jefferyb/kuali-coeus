@@ -5,7 +5,6 @@
 	<param name="build.version">Kuali-Coeus-Version</param>
 	<param name="app.context.name">${app.code}-${environment}</param>
 
-
 	<!-- KC Client DB -->
 	<param name="datasource.url">DATASOURCE_URL</param>
 	<param name="datasource.username">kcusername</param>

@@ -236,7 +236,7 @@ function install_build_packages {
 	# Debian/Ubuntu Packages
 	if [ -f /etc/debian_version ]; then
 		apt-get update
-		apt-get install -y git zip
+		apt-get install -y git zip make g++
 
 		# Install Oracle Java 8
 		if [ ! -f /etc/apt/sources.list.d/webupd8team-java-precise.list ]; then

@@ -2,6 +2,7 @@
 
 CATALINA_HOME=/opt/apache-tomcat/tomcat8
 CATALINA_PID=$CATALINA_HOME/conf/catalina.pid
+
 # Added for performance and you can adjust accordingly
  JAVA_OPTS="-Djava.awt.headless=true -ea -Xmx1024m -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled"
 
